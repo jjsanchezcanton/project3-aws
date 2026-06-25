@@ -1,0 +1,7 @@
+region                          = "eu-west-2"
+project_name                    = "jjs-project-3-de-portfolio"
+glue_database_name              = "nyc_tlc_project3"
+athena_bytes_scanned_cutoff     = 1073741824
+athena_results_expiration_days  = 7
+budget_limit_usd                = "5"
+budget_notification_email       = "you@example.com"
