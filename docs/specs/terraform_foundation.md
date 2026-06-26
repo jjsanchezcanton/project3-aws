@@ -114,43 +114,9 @@ __pycache__/
 
 ---
 
-## Appendix A — Dev IAM user policy (you create this user manually)
+## Appendix A — Dev IAM user policy
 
-Attach a least-privilege policy to the dev IAM user. A workable scoped policy for Milestone A (broaden minimally in later milestones for Lambda/Glue table ops):
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    { "Sid": "S3Bucket",
-      "Effect": "Allow",
-      "Action": ["s3:CreateBucket","s3:DeleteBucket","s3:ListBucket","s3:GetBucket*","s3:PutBucket*","s3:DeleteBucketPolicy","s3:PutLifecycleConfiguration","s3:GetLifecycleConfiguration","s3:PutEncryptionConfiguration","s3:GetEncryptionConfiguration"],
-      "Resource": "arn:aws:s3:::jjs-project-3-de-portfolio-*" },
-    { "Sid": "S3Objects",
-      "Effect": "Allow",
-      "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject","s3:AbortMultipartUpload"],
-      "Resource": "arn:aws:s3:::jjs-project-3-de-portfolio-*/*" },
-    { "Sid": "Glue",
-      "Effect": "Allow",
-      "Action": ["glue:*Database*","glue:*Table*","glue:*Partition*","glue:GetCatalog*"],
-      "Resource": "*" },
-    { "Sid": "Athena",
-      "Effect": "Allow",
-      "Action": ["athena:*","s3:GetBucketLocation"],
-      "Resource": "*" },
-    { "Sid": "Budgets",
-      "Effect": "Allow",
-      "Action": ["budgets:ViewBudget","budgets:ModifyBudget","budgets:CreateBudget","budgets:DescribeBudget*"],
-      "Resource": "*" },
-    { "Sid": "Identity",
-      "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity"],
-      "Resource": "*" }
-  ]
-}
-```
-
-Notes / honesty flags:
-- `glue:*` and `athena:*` are scoped by service rather than by resource (Glue/Athena resource-level scoping is awkward); acceptable for a solo portfolio account, and worth saying so in an interview ("I'd tighten these with resource ARNs and conditions in a shared account").
-- Milestone B adds Lambda + an execution role, which needs `iam:CreateRole`/`PassRole` (broad). When we get there, ADR + policy will scope `PassRole` with a condition on the Lambda service. Flagged now so it isn't a surprise.
-- Budgets actions are global (no region); everything else operates in eu-west-2.
+The dev IAM user is created manually. Its complete, current permissions policy is
+the single source of truth at **`iam/dev-user-policy.json`** (see `iam/README.md`
+and ADR-012). Apply that file as a whole to `project3-dev-policy` before
+`terraform apply`. This policy is intentionally not Terraform-managed.

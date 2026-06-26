@@ -105,3 +105,48 @@ Format: each ADR states context, the decision, consequences, and — for exclusi
 ---
 
 *ADRs 001–006 written at Milestone A. Further ADRs (event-driven ingest, crawler-vs-DDL, IAM least-privilege, schema-on-read, idempotency) are written at Milestones B and C as those decisions are implemented.*
+
+##ADR-007 — Event-driven ingest (Lambda + S3 events).
+Ingest is triggered by the S3 `ObjectCreated` event on `landing/`, not a schedule or a poll. *Why:* reactive, decoupled, demonstrates the canonical AWS serverless ingest pattern; the orchestrated path (Airflow, Milestone D) drives the *deterministic* transform sequence — two complementary patterns. *When polling/scheduled would win:* sources that don't emit events, or strict batch windows where you want a single controlled trigger time.
+ 
+##ADR-008 — Partition registration via Glue API in the Lambda, not a crawler, not partition projection.
+*Why:* a crawler costs DPU-hours and is non-deterministic; partition projection is free but removes the event-driven registration that is the *point* of this milestone. Explicit `CreatePartition` is deterministic and free. *When projection would win:* large, regular, predictable partition layouts where you never want per-file logic — then projection beats both.
+ 
+##ADR-009 — Bronze external table defined in Terraform (`aws_glue_catalog_table`), schema declared (not VARIANT).
+*Why:* IaC source of truth, reproducible with the rest of the stack, removed by `terraform destroy`; Athena over parquet has no VARIANT, so the schema is declared, with a verification step against the real file to absorb TLC drift. A readable SQL mirror is committed as documentation. *When Athena DDL alone would win:* throwaway exploration where IaC overhead isn't justified.
+ 
+##ADR-010 — Least-privilege Lambda execution role + scoped `PassRole`.
+*Why:* the execution role can only read `landing/`, write `bronze/`, and manage partitions on the one table; the dev user's `iam:PassRole` is conditioned to `lambda.amazonaws.com` and role/policy management is ARN-scoped to `jjs-project-3-*`. *Interview point:* "I scoped PassRole with a service condition rather than granting `iam:PassRole` on `*`."
+ 
+##ADR-011 — Lambda is dependency-light (boto3 only); no parquet parsing.
+*Why:* validates by key pattern + object size, not content — avoids a heavy pyarrow layer, keeps cold starts and packaging trivial, stays free. Row-level validation belongs in the Silver dbt layer (Milestone C), not at ingest. *When content validation at ingest would win:* when malformed files must be rejected before landing and a schema/row check is cheap relative to downstream cost.
+
+## ADR-012 — Dev IAM user policy is documentation-managed, not Terraform-managed
+
+**Status:** Accepted
+
+**Context.** Terraform authenticates to AWS as the dev user `jjs-project3-dev`.
+Managing that user's own policy from the same Terraform state is a bootstrap /
+circular dependency — the identity provisioning the stack would be mutating its
+own permissions — and long-lived human-credential permissions are better kept
+auditable and out of state.
+
+**Decision.** The dev user and its policy are created and maintained by hand. The
+canonical policy lives at `iam/dev-user-policy.json` (single source of truth) and
+is applied manually via the IAM console or `aws iam create-policy-version`. Spec
+appendices reference this file instead of restating the policy. Terraform manages
+only resource-side roles, such as the Lambda execution role.
+
+**Consequences.** Permission changes are one paste of the whole file, with no
+drift across specs. Scoping: S3 to the project bucket; IAM/Lambda to the
+`jjs-project-3-*` name pattern; `iam:PassRole` conditioned to `lambda.amazonaws.com`;
+Glue/Athena/Budgets service-wide (resource-level scoping awkward) — acceptable in a
+solo account, tightened in a shared one.
+
+**When Terraform-managing it would be right.** A separate bootstrap/admin principal
+(or IAM Identity Center) provisions the dev user, so the stack's own identity is not
+mutating itself — then the policy can live in IaC too.
+
+---
+
+*ADRs 007–012 written at Milestone B. Further ADRs (event-driven ingest, crawler-vs-DDL, IAM least-privilege, schema-on-read, idempotency) are written at Milestone C as those decisions are implemented.*
