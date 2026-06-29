@@ -1,0 +1,19 @@
+[project]
+name = "project3-loader"
+version = "0.1.0"
+description = "Ingestion + dbt loader venv for Project 3 (AWS + dbt-athena)."
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.34",
+    "requests>=2.32",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pyarrow>=17.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

@@ -7,3 +7,6 @@ terraform.tfvars
 __pycache__/
 .venv*/
 .DS_Store
+terraform/.lambda_build/
+data/
+.ruff_cache/

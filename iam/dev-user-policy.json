@@ -32,7 +32,7 @@
       "Sid": "LambdaManage",
       "Effect": "Allow",
       "Action": ["lambda:*"],
-      "Resource": "arn:aws:lambda:eu-west-2:722448938150:function:jjs-project-3-*"
+      "Resource": "arn:aws:lambda:eu-west-2:<account_id>:function:jjs-project-3-*"
     },
     {
       "Sid": "IAMForLambdaRole",
@@ -60,15 +60,15 @@
         "iam:GetRolePolicy"
       ],
       "Resource": [
-        "arn:aws:iam::722448938150:role/jjs-project-3-*",
-        "arn:aws:iam::722448938150:policy/jjs-project-3-*"
+        "arn:aws:iam::<account_id>:role/jjs-project-3-*",
+        "arn:aws:iam::<account_id>:policy/jjs-project-3-*"
       ]
     },
     {
       "Sid": "PassRoleToLambda",
       "Effect": "Allow",
       "Action": ["iam:PassRole"],
-      "Resource": "arn:aws:iam::722448938150:role/jjs-project-3-*",
+      "Resource": "arn:aws:iam::<account_id>:role/jjs-project-3-*",
       "Condition": {
         "StringEquals": { "iam:PassedToService": "lambda.amazonaws.com" }
       }
@@ -89,7 +89,7 @@
         "logs:ListTagsForResource",
         "logs:ListTagsLogGroup"
       ],
-      "Resource": "arn:aws:logs:eu-west-2:722448938150:log-group:/aws/lambda/jjs-project-3-*"
+      "Resource": "arn:aws:logs:eu-west-2:<account_id>:log-group:/aws/lambda/jjs-project-3-*"
     },
     {
       "Sid": "LogsRead",
