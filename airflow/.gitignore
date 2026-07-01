@@ -1,0 +1,6 @@
+airflow.db
+logs/
+*.cfg
+*.pid
+standalone_admin_password.txt
+simple_auth_manager_passwords.json.generated

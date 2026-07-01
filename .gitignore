@@ -13,3 +13,9 @@ data/
 dbt/dbt_packages/
 dbt/target/
 dbt/logs/
+airflow/airflow.db
+airflow/logs/
+airflow/*.cfg
+airflow/*.pid
+airflow/standalone_admin_password.txt
+airflow/simple_auth_manager_passwords.json.generated

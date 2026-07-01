@@ -192,6 +192,8 @@ mutating itself — then the policy can live in IaC too.
 
 *Why:* ~21% of TLC trips don't reconcile due to how the congestion surcharge is reflected upstream — a source-data issue that cannot be fixed downstream. Failing the build on it would be wrong; monitoring it is right, so the test is WARN severity. Identical call to Project 2 → cross-project consistency. *When ERROR would win:* a reconciliation invariant the pipeline itself is responsible for (e.g., a join that must not drop rows).
 
+---
+
 ## ADR-017 — Multi-month readiness: partition-relative cleaning + independent date dimension
 
 **Status:** Accepted
@@ -223,3 +225,20 @@ dimension are acceptable shortcuts. For an incremental pipeline they are technic
 ---
 
 *ADRs 013–017 written at Milestone C. Further ADRs might be written at Milestone D as those decisions are implemented.*
+
+---
+
+## ADR-018 — Local Airflow via standalone venv, superseding the Docker note in ADR-005.
+
+*Status:* Accepted (supersedes the Docker detail of ADR-005; the "exclude MWAA" decision in ADR-005 stands unchanged).
+*Context.* ADR-005 specified local Airflow "in Docker". In practice, getting AWS credentials into an Airflow container reliably (uid alignment, mounting `~/.aws`, or injecting keys) is the most failure-prone part of a local Docker setup.
+*Decision.* Run Airflow 3.2 with `airflow standalone` in a dedicated `.venv-airflow`, on the host. dbt-athena then authenticates through the host `~/.aws` `project3` profile with zero extra credential plumbing, and this mirrors the proven Project 2 setup.
+*Consequences.* Simpler, fewer moving parts, no container credential handling; Airflow runtime files stay on the host (git-ignored). *When Docker would win:* a shared/production deployment needing image reproducibility and isolation — there the container-credential work is justified (and you'd use an IAM role, not static keys).
+
+---
+
+## ADR-019 — Cosmos LOCAL execution mode reusing the `.venv-dbt` dbt executable.
+
+*Context.* Cosmos can run dbt in LOCAL, VIRTUALENV, or container modes.
+*Decision.* LOCAL mode with `dbt_executable_path` pointing at the existing `.venv-dbt/bin/dbt`. One dbt-athena install, reused by both the CLI and the orchestrator; `RenderConfig` uses `DBT_LS` (metadata-only parse, no warehouse hit at DAG-parse time).
+*Consequences.* No duplicate dbt install, no per-task virtualenv rebuild; identical adapter/version in CLI and orchestration. Same pattern as Project 2. *When VIRTUALENV/Docker modes would win:* isolating conflicting dbt/adapter versions per project, or running dbt in a separate runtime from Airflow.
