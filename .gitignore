@@ -10,3 +10,6 @@ __pycache__/
 terraform/.lambda_build/
 data/
 .ruff_cache/
+dbt/dbt_packages/
+dbt/target/
+dbt/logs/

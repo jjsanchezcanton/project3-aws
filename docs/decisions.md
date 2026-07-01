@@ -111,22 +111,32 @@ Format: each ADR states context, the decision, consequences, and — for exclusi
 ## ADR-007 — Event-driven ingest (Lambda + S3 events).
 
 Ingest is triggered by the S3 `ObjectCreated` event on `landing/`, not a schedule or a poll. *Why:* reactive, decoupled, demonstrates the canonical AWS serverless ingest pattern; the orchestrated path (Airflow, Milestone D) drives the *deterministic* transform sequence — two complementary patterns. *When polling/scheduled would win:* sources that don't emit events, or strict batch windows where you want a single controlled trigger time.
- 
+
+---
+
 ## ADR-008 — Partition registration via Glue API in the Lambda, not a crawler, not partition projection.
 
 *Why:* a crawler costs DPU-hours and is non-deterministic; partition projection is free but removes the event-driven registration that is the *point* of this milestone. Explicit `CreatePartition` is deterministic and free. *When projection would win:* large, regular, predictable partition layouts where you never want per-file logic — then projection beats both.
- 
+
+---
+
 ## ADR-009 — Bronze external table defined in Terraform (`aws_glue_catalog_table`), schema declared (not VARIANT).
 
 *Why:* IaC source of truth, reproducible with the rest of the stack, removed by `terraform destroy`; Athena over parquet has no VARIANT, so the schema is declared, with a verification step against the real file to absorb TLC drift. A readable SQL mirror is committed as documentation. *When Athena DDL alone would win:* throwaway exploration where IaC overhead isn't justified.
- 
+
+---
+
 ## ADR-010 — Least-privilege Lambda execution role + scoped `PassRole`.
 
 *Why:* the execution role can only read `landing/`, write `bronze/`, and manage partitions on the one table; the dev user's `iam:PassRole` is conditioned to `lambda.amazonaws.com` and role/policy management is ARN-scoped to `jjs-project-3-*`. *Interview point:* "I scoped PassRole with a service condition rather than granting `iam:PassRole` on `*`."
- 
+
+---
+
 ## ADR-011 — Lambda is dependency-light (boto3 only); no parquet parsing.
 
 *Why:* validates by key pattern + object size, not content — avoids a heavy pyarrow layer, keeps cold starts and packaging trivial, stays free. Row-level validation belongs in the Silver dbt layer (Milestone C), not at ingest. *When content validation at ingest would win:* when malformed files must be rejected before landing and a schema/row check is cheap relative to downstream cost.
+
+---
 
 ## ADR-012 — Dev IAM user policy is documentation-managed, not Terraform-managed
 
@@ -157,3 +167,59 @@ mutating itself — then the policy can live in IaC too.
 ---
 
 *ADRs 007–012 written at Milestone B. Further ADRs (event-driven ingest, crawler-vs-DDL, IAM least-privilege, schema-on-read, idempotency) are written at Milestone C as those decisions are implemented.*
+
+---
+
+## ADR-013 — Iceberg for the incremental fact, Hive for the aggregate marts.
+
+*Why:* Project 2's `fct_trips` used Snowflake's native `merge`; Athena-Hive has no merge (only `insert_overwrite`/`append`), so to keep true merge parity the fact is an **Iceberg** table (`incremental_strategy='merge'`). The aggregate marts are full-refresh, so plain Hive `table` is simpler and cheaper. *Interview line:* "Same dbt model as the Snowflake version; on Athena I reached for Iceberg specifically to preserve merge semantics — Hive would have forced insert_overwrite." *When Hive insert_overwrite would win:* large append-only/partition-replace facts where merge isn't needed and you want to avoid Iceberg's metadata overhead.
+
+---
+
+## ADR-014 — Bronze is a dbt source, not a dbt model.
+
+*Why:* Bronze is owned by Terraform + the ingest Lambda (Milestone B); dbt reads it via `source()` and starts at staging. Keeps the ingest/transform boundary clean and lets the event-driven layer evolve independently. *When dbt would own ingest too:* a dbt-only shop using `dbt seed`/external tables for raw, with no separate ingestion service.
+
+---
+
+## ADR-015 — Schema routing to per-layer Glue databases.
+
+*Why:* a `generate_schema_name` override lands staging/marts in their own lowercase Glue databases (`nyc_tlc_project3_staging` / `_marts`) instead of dbt's default target-prefixed names — clean separation, mirrors Project 2. *When a single database would win:* very small projects where one database with model-name prefixes is simpler than managing several.
+
+---
+
+## ADR-016 — `total_amount` reconciliation as WARN, not error.
+
+*Why:* ~21% of TLC trips don't reconcile due to how the congestion surcharge is reflected upstream — a source-data issue that cannot be fixed downstream. Failing the build on it would be wrong; monitoring it is right, so the test is WARN severity. Identical call to Project 2 → cross-project consistency. *When ERROR would win:* a reconciliation invariant the pipeline itself is responsible for (e.g., a join that must not drop rows).
+
+## ADR-017 — Multi-month readiness: partition-relative cleaning + independent date dimension
+
+**Status:** Accepted
+
+**Context.** The initial Silver filter excluded out-of-period trips with a hardcoded
+January 2024 timestamp range, and `dim_date` was derived only from the dates present
+in the data. Both assumptions break the moment a second month is processed: a
+hardcoded month would filter every other month to zero rows, and a data-derived
+`dim_date` would fail the `fct_trips → dim_date` relationship test for any date it
+had never seen.
+
+**Decision.**
+1. `int_trips_clean` validates each trip against **its own ingest partition**
+   (`year(pickup_at) = partition_year and month(pickup_at) = partition_month`),
+   not against a fixed month. The partition keys travel from Bronze (registered by
+   the ingest Lambda) through staging.
+2. `dim_date` is a fixed, independent calendar built with `dbt_utils.date_spine`
+   over a wide range (2023–2026), decoupled from whatever data is loaded.
+
+**Consequences.** The pipeline processes any month with no code change: each month's
+out-of-period rows are dropped relative to that month, and the relationship test holds
+because the calendar already covers every plausible date. January's result is
+unchanged (still ~95.71% retention; the same ~17 out-of-period rows removed).
+
+**When the simpler version would be right.** A genuinely single-shot, single-month
+backfill that will never be re-run — there a hardcoded range and a data-derived date
+dimension are acceptable shortcuts. For an incremental pipeline they are technical debt.
+
+---
+
+*ADRs 013–017 written at Milestone C. Further ADRs might be written at Milestone D as those decisions are implemented.*

@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_yellow_trips
+    description: "Typed, renamed yellow taxi trips read from the Bronze Glue table. One row per trip. Cleaning/filtering happens downstream in intermediate."
+    columns:
+      - name: pickup_at
+        description: "Trip pickup timestamp."
+        data_tests: [not_null]
+      - name: dropoff_at
+        description: "Trip dropoff timestamp."
+        data_tests: [not_null]
+      - name: pickup_location_id
+        description: "TLC pickup zone id (FK to dim_zone)."
+      - name: dropoff_location_id
+        description: "TLC dropoff zone id (FK to dim_zone)."
+      - name: payment_type_id
+        description: "Payment type code (FK to dim_payment_type)."
+
+  - name: stg_taxi_zones
+    description: "Cleaned TLC taxi zone lookup, one row per zone."
+    columns:
+      - name: zone_id
+        description: "TLC location id (primary key)."
+        data_tests:
+          - not_null
+          - unique
+      - name: borough
+        description: "NYC borough the zone belongs to."

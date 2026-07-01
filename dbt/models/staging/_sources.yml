@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: bronze
+    database: awsdatacatalog
+    schema: nyc_tlc_project3
+    tables:
+      - name: bronze_yellow_taxi      # the Glue table from Milestone B; dbt does NOT own it (ADR-014)

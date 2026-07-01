@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(DBT_PROFILES_DIR=/tmp/claude-1000/-home-juanjose-project3-aws/d2853df3-319e-47a3-9373-cfe7c9e76d2f/scratchpad/dbt_home /home/juanjose/project3-aws/.venv-dbt/bin/dbt list --resource-type model --select fct_trips stg_yellow_trips dim_vendor --output json)"
+    ]
+  }
+}

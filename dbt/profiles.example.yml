@@ -1,0 +1,14 @@
+project3_aws:
+  target: dev
+  outputs:
+    dev:
+      type: athena
+      region_name: eu-west-2
+      database: awsdatacatalog                 # the Glue catalog (dbt "database" level)
+      schema: nyc_tlc_project3                  # default Glue database (where Bronze lives)
+      work_group: jjs-project-3-de-portfolio-wg # enforces the bytes cap on dbt queries
+      s3_staging_dir: s3://jjs-project-3-de-portfolio-722448938150/athena-results/
+      s3_data_dir:    s3://jjs-project-3-de-portfolio-722448938150/dbt/
+      s3_data_naming: schema_table
+      aws_profile_name: project3                # uses ~/.aws profile — NO keys in this file
+      threads: 4
